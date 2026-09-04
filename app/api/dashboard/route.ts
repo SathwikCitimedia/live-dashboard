@@ -30,13 +30,13 @@ export async function GET(request: NextRequest) {
           name: "query_1",
           sql: sqlOne,
           rows: first.rows,
-          rowCount: first.rowCount,
+          rowCount: first.rowCount ?? first.rows.length,
         },
         {
           name: "query_2",
           sql: sqlTwo,
           rows: second.rows,
-          rowCount: second.rowCount,
+          rowCount: second.rowCount ?? second.rows.length,
           },
       ],
     }
