@@ -7,26 +7,34 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 
-type QueryResult = {
-  name: string
-  sql: string
-  rowCount: number
-  rows: unknown[]
-}
+import type { DashboardApiResponse, DashboardQuery, KeyUsageRow, QueryName } from "@/lib/dashboard-types"
 
-type DashboardResponse =
-  | {
-      queries: QueryResult[]
-    }
-  | {
-      error: string
-    }
+const queryMetaByName: Record<QueryName, string> = {
+  query_1: "API usage: total and environment split",
+  query_2: "API usage by environment and key",
+}
 
 export default function DashboardPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [queries, setQueries] = useState<QueryResult[]>([])
+  const [queries, setQueries] = useState<DashboardQuery[]>([])
+
+  const typedRows = (queryName: QueryName, rows: unknown[]) => {
+    if (queryName === "query_1" || queryName === "query_2") {
+      return rows as KeyUsageRow[]
+    }
+    return []
+  }
+
+  const formatRequestCount = (value: string | number) =>
+    new Intl.NumberFormat("en-US").format(typeof value === "string" ? Number.parseInt(value, 10) : value)
+
+  const tableTime = (value: string) => new Date(value).toLocaleString()
+
+  const resolveTitle = (name: QueryName) => {
+    return queryMetaByName[name] ?? "Query result"
+  }
 
   useEffect(() => {
     const loadQueries = async () => {
@@ -37,7 +45,7 @@ export default function DashboardPage() {
           cache: "no-store",
         })
 
-        const body = (await response.json().catch(() => null)) as DashboardResponse
+        const body = (await response.json().catch(() => null)) as DashboardApiResponse
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -48,7 +56,7 @@ export default function DashboardPage() {
           return
         }
 
-        setQueries((body as { queries: QueryResult[] }).queries)
+        setQueries((body as { queries: DashboardQuery[] }).queries)
       } catch {
         setError("Could not contact the dashboard endpoint.")
       } finally {
@@ -96,16 +104,32 @@ export default function DashboardPage() {
         {queries.map((query) => (
           <Card key={query.name}>
             <CardHeader>
-              <CardTitle className="text-base">{query.name}</CardTitle>
+              <CardTitle className="text-base">{resolveTitle(query.name)}</CardTitle>
               <CardDescription>Rows: {query.rowCount}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <pre className="overflow-x-auto rounded border bg-slate-950 p-2 text-xs text-slate-50">
-                {query.sql}
-              </pre>
-              <pre className="overflow-x-auto rounded border bg-slate-100 p-2 text-xs text-slate-900 dark:bg-slate-950 dark:text-slate-50">
-                {JSON.stringify(query.rows, null, 2)}
-              </pre>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs text-muted-foreground">
+                      <th className="px-2 py-2">Environment / Key</th>
+                      <th className="px-2 py-2">Total Requests</th>
+                      <th className="px-2 py-2">First Used</th>
+                      <th className="px-2 py-2">Last Used</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {typedRows(query.name, query.rows).map((row) => (
+                      <tr key={row.environment_and_key} className="border-b last:border-0">
+                        <td className="px-2 py-2">{row.environment_and_key}</td>
+                        <td className="px-2 py-2 font-mono">{formatRequestCount(row.total_requests)}</td>
+                        <td className="px-2 py-2">{tableTime(row.first_used)}</td>
+                        <td className="px-2 py-2">{tableTime(row.last_used)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         ))}
