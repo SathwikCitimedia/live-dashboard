@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.local
+.env.development
+.env.production
+.next
+node_modules
+npm-debug.log
+yarn-error.log
+coverage
+.DS_Store
