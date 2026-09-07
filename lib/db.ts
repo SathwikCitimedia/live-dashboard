@@ -1,7 +1,6 @@
 import { Pool } from "pg"
 
 declare global {
-  // eslint-disable-next-line no-var
   var _pgPool: Pool | undefined
 }
 
@@ -9,14 +8,6 @@ const getPool = (): Pool => {
   if (globalThis._pgPool) {
     return globalThis._pgPool
   }
-
-  console.log(
-    process.env.DB_HOST,
-    process.env.DB_PORT,
-    process.env.DB_USER,
-    process.env.DB_PASSWORD,
-    process.env.DB_NAME
-  )
 
   const pool = new Pool({
     host: process.env.DB_HOST,

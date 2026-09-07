@@ -6,27 +6,38 @@ import { Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState("admin@example.com")
+  const [email, setEmail] = useState("username")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
 
-  useEffect(() => {
-    const paramsError = searchParams.get("error")
-    if (paramsError) {
-      setError("Session expired. Please log in again.")
-    }
-  }, [searchParams])
+  const displayedError =
+    error ??
+    (searchParams.get("error")
+      ? "Session expired. Please sign in again."
+      : null)
 
   useEffect(() => {
     const ensureSession = async () => {
       try {
-        const response = await fetch("/api/auth/me", { method: "GET", cache: "no-store" })
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          cache: "no-store",
+        })
         const payload = (await response.json().catch(() => null)) as {
           authenticated?: boolean
         }
@@ -58,11 +69,9 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       })
 
-      const data = (await response.json().catch(() => null)) as
-        | {
-            error?: string
-          }
-        | null
+      const data = (await response.json().catch(() => null)) as {
+        error?: string
+      } | null
 
       if (!response.ok) {
         setError(data?.error ?? "Invalid credentials")
@@ -71,7 +80,7 @@ function LoginForm() {
 
       router.push("/dashboard")
     } catch {
-      setError("Could not contact the login endpoint.")
+      setError("We couldn't sign you in. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -88,34 +97,49 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-slate-50 p-6 dark:bg-slate-950">
-      <div className="w-full max-w-sm rounded-lg border bg-white p-6 shadow-sm dark:bg-slate-900">
-        <h1 className="mb-4 text-lg font-semibold">DB Logs Viewer</h1>
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Email</span>
-            <Input
-              required
-              name="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">Password</span>
-            <Input
-              required
-              type="password"
-              name="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          <Button className="w-full" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Signing in..." : "Sign in"}
-          </Button>
-        </form>
-      </div>
+      <Card className="w-full max-w-sm [--card-spacing:--spacing(6)]">
+        <CardHeader>
+          <CardTitle>
+            <h1 className="text-xl font-semibold">Usage Dashboard</h1>
+          </CardTitle>
+          <CardDescription>
+            View your API usage and recent activity.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-3" onSubmit={onSubmit}>
+            <div className="space-y-2 text-sm">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                required
+                name="text"
+                id="username"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2 text-sm">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                required
+                type="password"
+                name="password"
+                id="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+            {displayedError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{displayedError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <Button className="w-full" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
