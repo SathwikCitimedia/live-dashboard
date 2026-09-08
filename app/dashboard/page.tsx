@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { RefreshCw } from "lucide-react"
 
+import { ActivityDate } from "@/components/activity-date"
+import { InterviewsTable } from "@/components/interviews-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,22 +14,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { DashboardApiResponse, DashboardData } from "@/lib/dashboard-types"
+import { useInterviews } from "@/hooks/use-interviews"
 
 const formatCount = (value: string | number) => new Intl.NumberFormat("en-US").format(BigInt(value))
 
-function ActivityDate({ value }: { value: string | null }) {
-  const date = value ? new Date(value) : null
-  if (!date || Number.isNaN(date.getTime())) return <span className="text-muted-foreground">Unavailable</span>
-  return (
-    <time dateTime={date.toISOString()} className="block whitespace-nowrap">
-      <span className="block">{new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(date)}</span>
-      <span className="mt-1 block text-xs text-muted-foreground">{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).format(date)}</span>
-    </time>
-  )
-}
-
 export default function DashboardPage() {
   const router = useRouter()
+  const interviews = useInterviews()
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -73,13 +66,19 @@ export default function DashboardPage() {
     setError(null)
     void loadUsage(page, pageSize)
   }
-  const refresh = () => requestUsage(data?.pagination.page ?? 1, data?.pagination.pageSize ?? 10)
+  const refreshUsage = () => requestUsage(data?.pagination.page ?? 1, data?.pagination.pageSize ?? 10)
+  const refresh = () => {
+    refreshUsage()
+    interviews.refresh()
+  }
+  const isRefreshing = isLoading || interviews.isLoading
   const logout = async () => {
     setIsSigningOut(true)
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", credentials: "include" })
       if (!response.ok) throw new Error("Sign out failed")
       controller.current?.abort()
+      interviews.cancel()
       router.replace("/")
     } catch {
       setError("We couldn't sign you out. Please try again.")
@@ -95,12 +94,12 @@ export default function DashboardPage() {
       <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Usage Dashboard</h1>
-          <p className="text-sm text-muted-foreground">View your API usage and recent activity.</p>
+          <p className="text-sm text-muted-foreground">View your API usage and interview activity.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={refresh} disabled={isLoading || isSigningOut}>
-            <RefreshCw className={isLoading ? "size-4 animate-spin" : "size-4"} />
-            {isLoading ? "Refreshing..." : "Refresh"}
+          <Button variant="outline" onClick={refresh} disabled={isRefreshing || isSigningOut}>
+            <RefreshCw className={isRefreshing ? "size-4 animate-spin" : "size-4"} />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
           <Button variant="ghost" onClick={logout} disabled={isSigningOut}>{isSigningOut ? "Signing out..." : "Sign out"}</Button>
         </div>
@@ -111,7 +110,7 @@ export default function DashboardPage() {
           <AlertTitle>Something went wrong</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>{error}{data ? " Your last loaded usage is still shown below." : ""}</span>
-            <Button variant="outline" size="sm" onClick={refresh} disabled={isLoading}>Retry</Button>
+            <Button variant="outline" size="sm" onClick={refreshUsage} disabled={isLoading}>Retry</Button>
           </AlertDescription>
         </Alert>
       )}
@@ -188,7 +187,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </section>
-      {data && <p className="text-xs text-muted-foreground" aria-live="polite">Last updated {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(data.updatedAt))} · {timezone}</p>}
+      {data && <p className="text-xs text-muted-foreground" aria-live="polite">Usage last updated {new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(data.updatedAt))} · {timezone}</p>}
+      <InterviewsTable interviews={interviews} />
     </main>
   )
 }

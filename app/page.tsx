@@ -19,7 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState("username")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -66,7 +66,7 @@ function LoginForm() {
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       })
 
       const data = (await response.json().catch(() => null)) as {
@@ -114,8 +114,8 @@ function LoginForm() {
                 required
                 name="text"
                 id="username"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
               />
             </div>
             <div className="space-y-2 text-sm">
