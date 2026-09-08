@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import {
-  AUTH_EMAIL,
+  AUTH_EMAIL as AUTH_USERNAME,
   AUTH_PASSWORD,
   AUTH_SESSION_COOKIE_NAME,
   AUTH_SESSION_COOKIE_VALUE,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth"
 
 type LoginBody = {
-  email?: string
+  username?: string
   password?: string
 }
 
@@ -23,10 +23,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
 
-  const email = payload?.email?.trim()
+  const username = typeof payload?.username === "string" ? payload.username.trim() : undefined
   const password = payload?.password
 
-  if (email !== AUTH_EMAIL || password !== AUTH_PASSWORD) {
+  if (username !== AUTH_USERNAME || password !== AUTH_PASSWORD) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 })
   }
 
