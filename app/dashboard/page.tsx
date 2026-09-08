@@ -79,7 +79,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-6xl flex-col gap-8 px-4 py-8 sm:px-8 sm:py-12">
+    <main className="flex min-h-svh w-full flex-col gap-8 px-4 py-8 sm:px-8 sm:py-12">
       <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Usage Dashboard</h1>
