@@ -1,4 +1,4 @@
-import type { DashboardData } from "@/lib/dashboard-types"
+import type { PaginationData } from "@/lib/pagination-types"
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
@@ -40,7 +40,7 @@ export type InterviewRow = {
 
 export type InterviewsData = {
   rows: InterviewRow[]
-  pagination: DashboardData["pagination"]
+  pagination: PaginationData
   updatedAt: string
 }
 
