@@ -36,11 +36,11 @@ export default function DashboardPage() {
         return
       }
       const body = await response.json() as DashboardApiResponse
-      if (!response.ok || "error" in body) throw new Error("Unable to load usage")
+      if (!response.ok || "error" in body) throw new Error("Unable to load deliveries")
       if (requestId === latestRequest.current && !abort.signal.aborted) setData(body)
     } catch {
       if (requestId === latestRequest.current && !abort.signal.aborted) {
-        setError("We couldn't update your usage. Please try again.")
+        setError("We couldn't update your webhook deliveries. Please try again.")
       }
     } finally {
       if (requestId === latestRequest.current && !abort.signal.aborted) setIsLoading(false)
@@ -83,7 +83,7 @@ export default function DashboardPage() {
       <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Usage Dashboard</h1>
-          <p className="text-sm text-muted-foreground">View your API usage and interview activity.</p>
+          <p className="text-sm text-muted-foreground">View successful webhook deliveries and interview activity.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={refresh} disabled={isRefreshing || isSigningOut}>
@@ -98,7 +98,7 @@ export default function DashboardPage() {
         <Alert variant="destructive" className="p-4">
           <AlertTitle>Something went wrong</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>{error}{data ? " Your last loaded usage is still shown below." : ""}</span>
+            <span>{error}{data ? " Your last loaded deliveries are still shown below." : ""}</span>
             <Button variant="outline" size="sm" onClick={refreshUsage} disabled={isLoading}>Retry</Button>
           </AlertDescription>
         </Alert>

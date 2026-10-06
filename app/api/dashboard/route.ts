@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { AUTH_SESSION_COOKIE_NAME, isSessionValid } from "@/lib/auth"
-import type { DashboardData, KeyUsageRow } from "@/lib/dashboard-types"
+import type { DashboardData, WebhookUsageRow } from "@/lib/dashboard-types"
 import pool from "@/lib/db"
 
 export const runtime = "nodejs"
@@ -17,29 +17,31 @@ export async function GET(request: NextRequest) {
 
   let client
   try {
-    const sqlOne = process.env.DB_QUERY_1
-    const sqlTwo = process.env.DB_QUERY_2
-    if (!sqlOne?.trim() || !sqlTwo?.trim()) throw new Error("Usage queries are not configured")
+    const sql = process.env.DB_QUERY_1
+    if (!sql?.trim()) throw new Error("Usage query is not configured")
 
     client = await pool.connect()
     // One snapshot keeps the total and all per-key counts consistent.
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-    const total = await client.query<{ total_requests: string }>(`
-      SELECT total_requests::text FROM (${normalizeSql(sqlOne)}) AS summary
-      WHERE environment_and_key = 'TOTAL (all keys)'
+    const result = await client.query<WebhookUsageRow>(`
+      SELECT environment_and_key,
+        webhook_deliveries::text AS webhook_deliveries,
+        first_used::text AS first_used,
+        last_used::text AS last_used
+      FROM (${normalizeSql(sql)}) AS usage
+      ORDER BY usage.webhook_deliveries::numeric DESC, environment_and_key ASC
     `)
-    if (total.rows.length !== 1 || !/^\d+$/.test(total.rows[0].total_requests)) {
+    const totals = result.rows.filter((row) => row.environment_and_key === "TOTAL (all keys)")
+    if (totals.length !== 1) {
       throw new Error("Usage summary must contain one valid total row")
     }
-    const result = await client.query<KeyUsageRow>(`
-      SELECT environment_and_key, total_requests::text AS total_requests
-      FROM (${normalizeSql(sqlTwo)}) AS usage
-      ORDER BY usage.total_requests::numeric DESC, environment_and_key ASC
-    `)
+    if (result.rows.some((row) => typeof row.webhook_deliveries !== "string" || !/^\d+$/.test(row.webhook_deliveries))) {
+      throw new Error("Usage summary must contain valid delivery counts")
+    }
     await client.query("COMMIT")
     return json({
-      totalRequests: total.rows[0].total_requests,
-      rows: result.rows,
+      total: totals[0],
+      rows: result.rows.filter((row) => row.environment_and_key !== "TOTAL (all keys)"),
       updatedAt: new Date().toISOString(),
     })
   } catch (error) {

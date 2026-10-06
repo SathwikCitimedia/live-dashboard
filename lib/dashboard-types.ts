@@ -1,11 +1,13 @@
-export type KeyUsageRow = {
+export type WebhookUsageRow = {
   environment_and_key: string
-  total_requests: string
+  webhook_deliveries: string
+  first_used: string | null
+  last_used: string | null
 }
 
 export type DashboardData = {
-  totalRequests: string
-  rows: KeyUsageRow[]
+  total: WebhookUsageRow
+  rows: WebhookUsageRow[]
   updatedAt: string
 }
 
