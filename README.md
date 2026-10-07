@@ -1,7 +1,9 @@
-# Successful webhook delivery dashboard
+# AM webhook consumption dashboard
 
-The dashboard counts successful webhook deliveries and shows the first and last
-delivery times for each environment and all three API keys together.
+The dashboard summary and interview table both use the AM database's
+`webhook_logs_AM` records. API consumption counts every raw webhook log row,
+including failures and repeated log rows, and the summary shows the number of
+distinct interviews plus the first and last recorded webhook times.
 
 ## Local configuration
 
@@ -12,27 +14,25 @@ quoted values from `.env`; the summary requires only `DB_QUERY_1`:
 
 ```dotenv
 DB_QUERY_1="SELECT
-    CASE
-        WHEN a.api_key_prefix = 'ds-9f3a7c2' THEN 'Production (original key)'
-        WHEN a.api_key_prefix = 'ds-097b27f' THEN 'Production (new key)'
-        WHEN a.api_key_prefix = 'ds-2671acc' THEN 'Dev/Staging (new key)'
-        ELSE 'TOTAL (all keys)'
-    END AS environment_and_key,
-    COUNT(*) AS webhook_deliveries,
-    MIN(w.created_at) AS first_used,
-    MAX(w.created_at) AS last_used
-FROM webhook_logs_AM w
-JOIN api_usage_AM a ON a.interview_id = w.interview_id
-WHERE w.success = TRUE
-  AND a.api_key_prefix IN ('ds-9f3a7c2', 'ds-097b27f', 'ds-2671acc')
-GROUP BY ROLLUP (a.api_key_prefix)
-ORDER BY webhook_deliveries DESC;"
+    COUNT(*) AS api_consumption_all,
+    COUNT(DISTINCT interview_id) AS distinct_interviews,
+    MIN(created_at) AS first_used,
+    MAX(created_at) AS last_used
+FROM webhook_logs_AM;"
 ```
 
 Install dependencies with `npm install`, then run `npm run dev`. The query runs
-once per summary refresh in a read-only transaction. Its `COUNT(*)` counts the
-joined rows, so multiple matching API usage records can contribute multiple
-deliveries. No second summary query is required.
+once per summary refresh in a read-only transaction. It counts logs directly,
+without filtering on success, environment, or API key and without joining to API
+usage records. No second summary query is required.
+
+The interview table shows one row for each AM interview referenced by the raw
+logs, with that interview's log count as API consumption. Its global consumption
+count covers every page, rather than only the visible interviews, so it matches
+the summary's source and counting rules. Both dashboard APIs return an error when
+a log has a null interview ID or references a missing AM interview; correct those
+source records before loading the dashboard instead of silently dropping
+consumption.
 
 ## Cloud Run deployment
 

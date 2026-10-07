@@ -103,7 +103,7 @@ function LoginForm() {
             <h1 className="text-xl font-semibold">Usage Dashboard</h1>
           </CardTitle>
           <CardDescription>
-            View successful webhook deliveries and recent activity.
+            View API consumption and the interviews behind it.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { AUTH_SESSION_COOKIE_NAME, isSessionValid } from "@/lib/auth"
-import type { DashboardData, WebhookUsageRow } from "@/lib/dashboard-types"
+import { assertUsageSummaryMatchesInterviews, getUsageSummarySql, loadUsageSummary } from "@/lib/consumption-queries"
+import type { DashboardData } from "@/lib/dashboard-types"
 import pool from "@/lib/db"
 
 export const runtime = "nodejs"
 
-const normalizeSql = (sql: string) => sql.trim().replace(/;+\s*$/, "")
 const json = (body: DashboardData | { error: string }, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } })
 
@@ -17,31 +17,16 @@ export async function GET(request: NextRequest) {
 
   let client
   try {
-    const sql = process.env.DB_QUERY_1
-    if (!sql?.trim()) throw new Error("Usage query is not configured")
+    const sql = getUsageSummarySql()
 
     client = await pool.connect()
-    // One snapshot keeps the total and all per-key counts consistent.
+    // Validate the configured summary against the same raw-log snapshot.
     await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-    const result = await client.query<WebhookUsageRow>(`
-      SELECT environment_and_key,
-        webhook_deliveries::text AS webhook_deliveries,
-        first_used::text AS first_used,
-        last_used::text AS last_used
-      FROM (${normalizeSql(sql)}) AS usage
-      ORDER BY usage.webhook_deliveries::numeric DESC, environment_and_key ASC
-    `)
-    const totals = result.rows.filter((row) => row.environment_and_key === "TOTAL (all keys)")
-    if (totals.length !== 1) {
-      throw new Error("Usage summary must contain one valid total row")
-    }
-    if (result.rows.some((row) => typeof row.webhook_deliveries !== "string" || !/^\d+$/.test(row.webhook_deliveries))) {
-      throw new Error("Usage summary must contain valid delivery counts")
-    }
+    const summary = await loadUsageSummary(client, sql)
+    await assertUsageSummaryMatchesInterviews(client, summary)
     await client.query("COMMIT")
     return json({
-      total: totals[0],
-      rows: result.rows.filter((row) => row.environment_and_key !== "TOTAL (all keys)"),
+      summary,
       updatedAt: new Date().toISOString(),
     })
   } catch (error) {

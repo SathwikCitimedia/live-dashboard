@@ -37,7 +37,7 @@ export function useInterviews() {
       }
     } catch {
       if (requestId === latestRequest.current && !abort.signal.aborted) {
-        setError("We couldn't update interviews. Please try again.")
+        setError("We couldn't update API consumption and interviews. Please try again.")
       }
     } finally {
       if (requestId === latestRequest.current && !abort.signal.aborted) setIsLoading(false)

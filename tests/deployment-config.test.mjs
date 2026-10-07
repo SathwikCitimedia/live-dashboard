@@ -9,21 +9,11 @@ import { fileURLToPath } from "node:url"
 const deploymentScript = fileURLToPath(new URL("../CloudRun.Deploy.sh", import.meta.url))
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8")
 const query = `SELECT
-    CASE
-        WHEN a.api_key_prefix = 'ds-9f3a7c2' THEN 'Production (original key)'
-        WHEN a.api_key_prefix = 'ds-097b27f' THEN 'Production (new key)'
-        WHEN a.api_key_prefix = 'ds-2671acc' THEN 'Dev/Staging (new key)'
-        ELSE 'TOTAL (all keys)'
-    END AS environment_and_key,
-    COUNT(*) AS webhook_deliveries,
-    MIN(w.created_at) AS first_used,
-    MAX(w.created_at) AS last_used
-FROM webhook_logs_AM w
-JOIN api_usage_AM a ON a.interview_id = w.interview_id
-WHERE w.success = TRUE
-  AND a.api_key_prefix IN ('ds-9f3a7c2', 'ds-097b27f', 'ds-2671acc')
-GROUP BY ROLLUP (a.api_key_prefix)
-ORDER BY webhook_deliveries DESC;`
+    COUNT(*) AS api_consumption_all,
+    COUNT(DISTINCT interview_id) AS distinct_interviews,
+    MIN(created_at) AS first_used,
+    MAX(created_at) AS last_used
+FROM webhook_logs_AM;`
 
 function runDeployment(overrides = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), "webhook-deployment-test-"))
@@ -92,7 +82,7 @@ function deployedEnvironment(commands) {
   }))
 }
 
-test("documents the exact successful webhook rollup query", () => {
+test("documents the raw AM webhook consumption aggregate query", () => {
   assert.ok(readme.includes(`DB_QUERY_1="${query}"`))
 })
 

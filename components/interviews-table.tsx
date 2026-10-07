@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react"
 import { ChevronDown, ChevronUp } from "lucide-react"
 
-import { ActivityDate } from "@/components/activity-date"
+import { DeliveryDate } from "@/components/delivery-date"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,77 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { useInterviews } from "@/hooks/use-interviews"
-import type { InterviewRow, JsonValue } from "@/lib/interview-types"
+import type { InterviewRow } from "@/lib/interview-types"
 
-type DetailField = { key: keyof InterviewRow; label: string; format?: "date" | "recorded" | "json" }
+const formatCount = (value: string) => new Intl.NumberFormat("en-US").format(BigInt(value))
 
-const detailGroups: { title: string; fields: DetailField[] }[] = [
-  { title: "Contact information", fields: [
-    { key: "id", label: "Record ID" },
-    { key: "candidate_id", label: "Candidate ID" },
-    { key: "candidate_phones", label: "Candidate phones" },
-    { key: "recruiter_phone", label: "Recruiter phone" },
-    { key: "hr_user_id", label: "HR user ID" },
-    { key: "hr_phone", label: "HR phone" },
-    { key: "interview_link", label: "Interview link" },
-  ] },
-  { title: "Lifecycle dates", fields: [
-    { key: "timezone", label: "Interview timezone" },
-    { key: "created_at", label: "Created", format: "date" },
-    { key: "started_at", label: "Started", format: "date" },
-    { key: "completed_at", label: "Completed", format: "date" },
-    { key: "updated_at", label: "Updated", format: "date" },
-    { key: "abandoned_at", label: "Abandoned", format: "recorded" },
-  ] },
-  { title: "Presence and connection", fields: [
-    { key: "presence_status", label: "Presence status" },
-    { key: "current_socket_id", label: "Current socket ID" },
-    { key: "last_heartbeat_at", label: "Last heartbeat", format: "recorded" },
-    { key: "last_socket_disconnect_at", label: "Last socket disconnect", format: "recorded" },
-    { key: "disconnect_reason", label: "Disconnect reason" },
-    { key: "reconnect_count", label: "Reconnect count" },
-  ] },
-  { title: "Configuration", fields: [
-    { key: "digital_human_enabled", label: "Digital human enabled" },
-    { key: "is_demo", label: "Demo interview" },
-    { key: "challenges", label: "Challenges" },
-    { key: "widget_id", label: "Widget ID" },
-    { key: "stream_response_config", label: "Stream response configuration", format: "json" },
-  ] },
-]
-
-function Value({ value }: { value: JsonValue | undefined }) {
+function Value({ value }: { value: string | number | null | undefined }) {
   if (value === null || value === undefined || value === "") return <span className="text-muted-foreground">Unavailable</span>
-  if (typeof value === "boolean") return <>{value ? "Yes" : "No"}</>
-  if (Array.isArray(value)) return value.length ? (
-    <ul className="list-inside list-disc space-y-1">{value.map((item, index) => <li key={index}><Value value={item} /></li>)}</ul>
-  ) : <span className="text-muted-foreground">None</span>
-  if (typeof value === "object") return <pre className="whitespace-pre-wrap [overflow-wrap:anywhere]">{JSON.stringify(value, null, 2)}</pre>
   return <>{value}</>
 }
 
 function InterviewDetails({ row }: { row: InterviewRow }) {
   return (
-    <div className="grid min-w-0 gap-8 p-4 @lg:grid-cols-2 @4xl:grid-cols-4">
-      {detailGroups.map((group) => (
-        <section key={group.title} aria-label={group.title} className="min-w-0 space-y-4">
-          <h3 className="font-semibold">{group.title}</h3>
-          <dl className="space-y-4">
-            {group.fields.map(({ key, label, format }) => (
-              <div key={key} className="min-w-0 space-y-1">
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="whitespace-normal [overflow-wrap:anywhere]">
-                  {format === "date" ? <ActivityDate value={row[key] as string | null} />
-                    : format === "json" && row[key] !== null ? <pre className="whitespace-pre-wrap [overflow-wrap:anywhere]">{JSON.stringify(row[key], null, 2)}</pre>
-                    : <Value value={row[key]} />}
-                  {format === "recorded" && row[key] !== null && <span className="mt-1 block text-xs text-muted-foreground">As recorded · no timezone</span>}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+    <dl className="grid min-w-0 gap-8 p-4 @lg:grid-cols-2">
+      {([
+        ["id", "Record ID"],
+        ["session_id", "Session ID"],
+      ] as const).map(([field, label]) => (
+        <div key={field} className="min-w-0 space-y-1">
+          <dt className="text-xs text-muted-foreground">{label}</dt>
+          <dd className="whitespace-normal [overflow-wrap:anywhere]"><Value value={row[field]} /></dd>
+        </div>
       ))}
-    </div>
+    </dl>
   )
 }
 
@@ -107,29 +58,29 @@ export function InterviewsTable({ interviews }: { interviews: ReturnType<typeof 
       <Card className="min-w-0 [--card-spacing:--spacing(6)]">
         <CardHeader>
           <CardTitle className="text-lg">Interviews</CardTitle>
-          <CardDescription>Candidate details and interview activity, newest first. Expand a row for all details.</CardDescription>
+          <CardDescription>API consumption by interview, latest activity first. Expand a row for record and session IDs.</CardDescription>
           {timezone && <p className="mt-2 text-xs text-muted-foreground">Times shown in {timezone}, except timestamps marked as recorded.</p>}
         </CardHeader>
         <CardContent className="@container min-w-0 space-y-6">
           {error && (
             <Alert variant="destructive" className="p-4">
-              <AlertTitle>Interviews could not be updated</AlertTitle>
+              <AlertTitle>Dashboard could not be updated</AlertTitle>
               <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-                <span>{error}{data ? " Your last loaded interviews are still shown below." : ""}</span>
-                <Button variant="outline" size="sm" onClick={retry} disabled={isLoading}>Retry interviews</Button>
+                <span>{error}{data ? " Your last loaded summary and interviews are still shown." : ""}</span>
+                <Button variant="outline" size="sm" onClick={retry} disabled={isLoading}>Retry</Button>
               </AlertDescription>
             </Alert>
           )}
-          <Table className="min-w-260 table-fixed text-sm">
+          <Table className="min-w-300 table-fixed text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-28">Interview ID</TableHead>
+                <TableHead className="w-44">Interview ID</TableHead>
                 <TableHead className="w-52">Candidate</TableHead>
                 <TableHead className="w-36">Role</TableHead>
                 <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-36">Scheduled time</TableHead>
-                <TableHead className="w-32">Recruiter</TableHead>
-                <TableHead className="w-24">Source</TableHead>
+                <TableHead className="w-36">API consumption</TableHead>
+                <TableHead className="w-40">First used</TableHead>
+                <TableHead className="w-40">Last used</TableHead>
                 <TableHead className="w-24">Details</TableHead>
               </TableRow>
             </TableHeader>
@@ -143,9 +94,9 @@ export function InterviewsTable({ interviews }: { interviews: ReturnType<typeof 
                     <TableCell className="py-5"><p className="font-medium"><Value value={row.candidate_name} /></p><p className="mt-1 text-xs text-muted-foreground"><Value value={row.candidate_email} /></p></TableCell>
                     <TableCell className="py-5"><Value value={row.role} /></TableCell>
                     <TableCell className="py-5"><Value value={row.status} /></TableCell>
-                    <TableCell className="py-5"><ActivityDate value={row.interview_time} /></TableCell>
-                    <TableCell className="py-5"><Value value={row.recruiter_name} /></TableCell>
-                    <TableCell className="py-5"><Value value={row.source} /></TableCell>
+                    <TableCell className="py-5 tabular-nums">{formatCount(row.api_consumption)}</TableCell>
+                    <TableCell className="py-5"><DeliveryDate value={row.first_used} /></TableCell>
+                    <TableCell className="py-5"><DeliveryDate value={row.last_used} /></TableCell>
                     <TableCell className="py-5">
                       <Button variant="ghost" size="sm" aria-expanded={expanded.has(row.id)} aria-controls={`interview-details-${row.id}`} aria-label={`${expanded.has(row.id) ? "Hide" : "Show"} details for interview ${row.interview_id ?? row.id}`} onClick={() => toggle(row.id)}>
                         {expanded.has(row.id) ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}Details
@@ -160,7 +111,15 @@ export function InterviewsTable({ interviews }: { interviews: ReturnType<typeof 
                     </TableCell>
                   </TableRow>
                 </Fragment>
-              )) : <TableRow><TableCell colSpan={8} className="h-36 text-center text-muted-foreground">{data ? "No interviews yet." : "Interviews are currently unavailable. Please retry."}</TableCell></TableRow>}
+              )) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="p-0 text-center text-muted-foreground">
+                    <div className="sticky left-0 flex h-36 w-[100cqw] items-center justify-center whitespace-normal px-4">
+                      {data ? "No interviews yet." : "Interviews are currently unavailable. Please retry."}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
           {pagination && (
